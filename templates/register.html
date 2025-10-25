@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <form>
+            <label for="domen">Придумайте себе домен</label>
+            <br>
+            <input type="text" id="domen" required>
+            <br>
+            <label for="password">Придумайте себе пароль</label>
+            <br>
+            <h4>пароль должен содержать не меньше 8 и  не больше 20 символов, а также хотя бы одну строчную букву, заглавную и цифру</h4>
+            <br>
+            <input type="password" id="password" minlength="8" maxlength="20" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" required>
+            <br>
+            <input type="submit" id="submit">
+        </form>
+    </body>
+</html>
