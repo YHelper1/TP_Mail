@@ -2,12 +2,13 @@ package main
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -15,34 +16,66 @@ var database *gorm.DB
 
 type account struct {
 	gorm.Model
-	login    string `gorm:"uniqueIndex"`
-	password [32]byte
+	Login    string
+	Password string
 }
 
 var template_index = getTemplate("index.html")
 var template_register = getTemplate("register.html")
+var template_login = getTemplate("login.html")
 
 func getTemplate(name string) template.Template {
-	var template_ = template.Must(template.ParseFiles("templates." + name))
+	var template_ = template.Must(template.ParseFiles("templates/" + name))
 	return *template_
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	template_index.Execute(w, nil)
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+  //template_login.Execute(w, nil)
+  w.WriteHeader(logIn(postFormGetAccountDetails(r)))
+}
+
+func logIn(login string, password string) int {
+  var acc_ account;
+  var acc = database.First(&acc_, "Login", login)
+  if (acc.Error != nil) {
+    return 404
+  }
+  if (acc_.Password == password) {
+    return 202
+  }
+  
+  return 403
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-	template_register.Execute(w, nil)
-	createAccount(postFormGetAccountDetails(r))
+	//template_register.Execute(w, nil)
+	w.WriteHeader(createAccount(postFormGetAccountDetails(r)))
 }
 
 func postFormGetAccountDetails(r *http.Request) (string, string) {
-	return r.PostForm.Get("login"), r.PostForm.Get("password")
+	return r.Header.Get("login"), r.Header.Get("password")
 }
 
-func createAccount(login string, password string) {
-	newAccount := account{login: login, password: getHash(getBytes(password))}
-	database.Create(&newAccount)
+func createAccount(login string, password string) int {
+  if (checkIsExist(login) != true) {
+	  newAccount := account{Login: login, Password: password}
+    fmt.Print(newAccount)
+    database.Create(&newAccount)
+    return 200
+  }
+  
+  return 403
+}
+
+func checkIsExist(login string) bool {
+  var acc_ account
+  acc := database.First(&acc_, "Login", login)
+  fmt.Print(acc.Error)
+  if (acc.Error != nil){
+    return false
+  }
+  return true
 }
 
 func main() {
@@ -56,9 +89,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", indexHandler)
+	mux.HandleFunc("/login", loginHandler)
 	mux.HandleFunc("/register", registerHandler)
 	http.ListenAndServe(":"+port, mux)
+
 }
 
 func getBytes(string_ string) []byte {
@@ -70,16 +104,23 @@ func getHash(bytePassword []byte) [32]byte {
 }
 
 func startDB() *gorm.DB {
-	dsn := "host=localhost port=54560 user=root dbname=Mails password=aabad77c-1f51-48af-b652 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	//dsn := "host=localhost port=5432 user=root dbname=Mails password=BKNVrGg942tetFMOhlGK sslmode=disable"
+  createDBFile("AccMail")
+	db, err := gorm.Open(sqlite.Open("AccMail.db"), &gorm.Config{})
 
 	if err != nil {
-		log.Fatal(err)
+    log.Fatal(err)
 	}
 
 	return db
 }
 
+func createDBFile(name string) {
+  os.Create(name + ".db")
+}
+
 func addTable(db *gorm.DB, table interface{}) {
 	db.AutoMigrate(&table)
 }
+
+
